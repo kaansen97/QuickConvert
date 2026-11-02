@@ -28,13 +28,20 @@ if `Report.pdf` exists you get `Report (1).pdf`. Select several files to convert
 ## Install
 
 1. Put this folder somewhere permanent (the menu points at it).
-2. Double-click **`install.bat`**. It installs the Python packages for your user and adds the menu entries.
+2. Double-click **`install.bat`**. It installs the Python packages for your user (if missing) and adds the menu entries.
 
-Moved the folder or changed Python? Run `install.bat` again.
+If the `.bat` doesn't run (blocked by policy, or `py` launcher missing), do the same from a terminal:
+
+```bash
+cd path\to\QuickConvert
+py install.py        # or: python install.py
+```
+
+Moved the folder or changed Python? Run the install again.
 
 ## Uninstall
 
-Double-click **`uninstall.bat`**.
+Double-click **`uninstall.bat`**, or run `py install.py --uninstall`.
 
 ## How it works
 

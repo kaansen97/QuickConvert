@@ -1,14 +1,37 @@
 """Add (or with --uninstall, remove) the QuickConvert right-click menus for the current user.
 
+    py install.py               install packages (if missing) + menus
+    py install.py --uninstall   remove the menus
+
 Everything goes under HKEY_CURRENT_USER, so no admin rights are needed.
 """
 
 import ctypes
+import subprocess
 import sys
 import winreg
 from pathlib import Path
 
-from quickconvert import images, markdown_pdf, office
+
+def ensure_requirements() -> None:
+    """pip install --user the packages if any is missing, then restart so they import cleanly."""
+    try:
+        import markdown2, PIL, win32com.client  # noqa: E401, F401
+        return
+    except ImportError:
+        pass
+    requirements = Path(__file__).resolve().with_name("requirements.txt")
+    print("Installing Python packages for your user (no admin needed)...")
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--user", "-r", str(requirements)], check=True
+    )
+    sys.exit(subprocess.run([sys.executable, *sys.argv]).returncode)
+
+
+if "--uninstall" not in sys.argv:
+    ensure_requirements()
+
+from quickconvert import images, markdown_pdf, office  # noqa: E402
 
 ROOT = r"Software\Classes\SystemFileAssociations"
 KEY_PREFIX = "QuickConvert"
