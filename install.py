@@ -28,6 +28,18 @@ def ensure_requirements() -> None:
     sys.exit(subprocess.run([sys.executable, *sys.argv]).returncode)
 
 
+def check_tkinter() -> None:
+    """tkinter ships with Python (it can't come from pip); without it there's no progress window."""
+    try:
+        import tkinter  # noqa: F401
+    except ImportError:
+        print(
+            "\nNote: tkinter is missing, so conversions run without the progress window.\n"
+            "To add it (no admin needed for a per-user Python): Settings > Apps > Python > Modify,\n"
+            "tick 'tcl/tk and IDLE', finish, then run this installer again.\n"
+        )
+
+
 if "--uninstall" not in sys.argv:
     ensure_requirements()
 
@@ -79,10 +91,11 @@ def delete_tree(path: str) -> None:
 
 def add_menu(ext: str) -> None:
     menu = rf"{ROOT}\{ext}\shell\{KEY_PREFIX}"
-    set_key(menu, {"MUIVerb": "Convert to", "Icon": ICON, "SubCommands": ""})
+    # "Player" keeps the menu visible for any number of selected files (default hides it above 15).
+    set_key(menu, {"MUIVerb": "Convert to", "Icon": ICON, "SubCommands": "", "MultiSelectModel": "Player"})
     for i, target in enumerate(targets_for(ext)):
         item = rf"{menu}\shell\{i}{target}"  # numeric prefix keeps menu order
-        set_key(item, {"MUIVerb": LABELS[target]})
+        set_key(item, {"MUIVerb": LABELS[target], "MultiSelectModel": "Player"})
         set_key(rf"{item}\command", {"": command(target)})
 
 
@@ -111,4 +124,5 @@ if __name__ == "__main__":
     else:
         install()
         print("QuickConvert installed. Right-click a file (Windows 11: 'Show more options').")
+        check_tkinter()
     refresh_explorer()

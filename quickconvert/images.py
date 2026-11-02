@@ -2,7 +2,7 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
-from .common import output_path
+from .common import output_path, progress
 
 # target -> (extension, Pillow format)
 TARGETS = {
@@ -29,10 +29,12 @@ def _flatten(img: Image.Image) -> Image.Image:
 def convert(source: Path, target: str) -> Path:
     ext, fmt = TARGETS[target]
     out = output_path(source, ext)
+    progress("Reading image…", 0.2)
     with Image.open(source) as img:
         img = ImageOps.exif_transpose(img)
         if fmt in ("JPEG", "PDF"):
             img = _flatten(img)
         options = {"quality": 92} if fmt in ("JPEG", "WEBP") else {}
+        progress(f"Saving {target.upper()}…", 0.6)
         img.save(out, fmt, **options)
     return out

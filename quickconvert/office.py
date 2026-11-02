@@ -6,7 +6,7 @@ from pathlib import Path
 import pythoncom
 import win32com.client
 
-from .common import output_path
+from .common import output_path, progress
 
 WORD_EXTS = [".docx", ".doc", ".docm", ".rtf", ".odt"]
 EXCEL_EXTS = [".xlsx", ".xls", ".xlsm", ".xlsb", ".ods", ".csv"]
@@ -18,10 +18,12 @@ WD_FORMAT_PDF = 17
 WD_FORMAT_DOCX = 16
 XL_TYPE_PDF = 0
 PP_SAVE_AS_PDF = 32
+WD_INLINE_SHAPE_HORIZONTAL_LINE = 6
 
 
 @contextmanager
 def office_app(prog_id: str):
+    progress(f"Starting {prog_id.split('.')[0]} in the background…", 0.1)
     pythoncom.CoInitialize()
     # DispatchEx starts a private, hidden instance so files you already have open are untouched.
     app = win32com.client.DispatchEx(prog_id)
@@ -40,6 +42,7 @@ def word_document(path: Path):
     with office_app("Word.Application") as word:
         word.Visible = False
         word.DisplayAlerts = 0
+        progress("Opening document…", 0.35)
         doc = word.Documents.Open(
             str(path), ConfirmConversions=False, ReadOnly=True, AddToRecentFiles=False
         )
@@ -52,15 +55,19 @@ def word_document(path: Path):
 def export_pdf(document: Path, out: Path, fit_images: bool = False) -> None:
     with word_document(document) as doc:
         if fit_images:
+            progress("Fitting images to the page…", 0.55)
             _shrink_wide_images(doc)
+        progress("Saving PDF…", 0.7)
         doc.ExportAsFixedFormat(str(out), WD_FORMAT_PDF)
 
 
 def export_docx(document: Path, out: Path) -> None:
     """Save an HTML page as a self-contained .docx."""
     with word_document(document) as doc:
+        progress("Fitting and embedding images…", 0.55)
         _shrink_wide_images(doc)
         _embed_linked_images(doc)
+        progress("Saving Word document…", 0.7)
         doc.SaveAs2(str(out), FileFormat=WD_FORMAT_DOCX)
 
 
@@ -69,6 +76,9 @@ def _shrink_wide_images(doc) -> None:
     usable_w = setup.PageWidth - setup.LeftMargin - setup.RightMargin
     usable_h = setup.PageHeight - setup.TopMargin - setup.BottomMargin
     for shape in doc.InlineShapes:
+        # Horizontal lines (from "---") report Width -1 and can't be resized; skip them.
+        if shape.Type == WD_INLINE_SHAPE_HORIZONTAL_LINE or shape.Width <= 0 or shape.Height <= 0:
+            continue
         ratio = min(usable_w / shape.Width, usable_h / shape.Height, 1)
         if ratio < 1:
             shape.Width, shape.Height = shape.Width * ratio, shape.Height * ratio
@@ -89,8 +99,10 @@ def _svg_to_pdf(source: Path, out: Path) -> None:
         word.DisplayAlerts = 0
         doc = word.Documents.Add()
         try:
+            progress("Drawing SVG…", 0.4)
             doc.InlineShapes.AddPicture(str(source), LinkToFile=False, SaveWithDocument=True)
             _shrink_wide_images(doc)
+            progress("Saving PDF…", 0.7)
             doc.ExportAsFixedFormat(str(out), WD_FORMAT_PDF)
         finally:
             doc.Close(SaveChanges=False)
@@ -100,8 +112,10 @@ def _excel_to_pdf(source: Path, out: Path) -> None:
     with office_app("Excel.Application") as excel:
         excel.Visible = False
         excel.DisplayAlerts = False
+        progress("Opening workbook…", 0.35)
         book = excel.Workbooks.Open(str(source), UpdateLinks=0, ReadOnly=True, AddToMru=False)
         try:
+            progress("Saving PDF…", 0.6)
             book.ExportAsFixedFormat(XL_TYPE_PDF, str(out))
         finally:
             book.Close(SaveChanges=False)
@@ -109,10 +123,12 @@ def _excel_to_pdf(source: Path, out: Path) -> None:
 
 def _powerpoint_to_pdf(source: Path, out: Path) -> None:
     with office_app("PowerPoint.Application") as powerpoint:
+        progress("Opening presentation…", 0.35)
         deck = powerpoint.Presentations.Open(
             str(source), ReadOnly=True, Untitled=False, WithWindow=False
         )
         try:
+            progress("Saving PDF…", 0.6)
             deck.SaveAs(str(out), PP_SAVE_AS_PDF)
         finally:
             deck.Close()

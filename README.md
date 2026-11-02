@@ -39,6 +39,12 @@ py install.py        # or: python install.py
 
 Moved the folder or changed Python? Run the install again.
 
+`tkinter` (for the progress window) comes with Python and can't be installed with pip. The installer
+tells you if it's missing; conversions still work, just without the window. To add it: Settings > Apps >
+Python > Modify > tick *tcl/tk and IDLE*.
+
+Tip: a copy on your local disk (e.g. `C:\Users\<you>\QuickConvert`) starts faster than one on a network drive.
+
 ## Uninstall
 
 Double-click **`uninstall.bat`**, or run `py install.py --uninstall`.
@@ -55,7 +61,13 @@ Double-click **`uninstall.bat`**, or run `py install.py --uninstall`.
 - **Images:** Pillow. EXIF rotation is applied; transparency becomes white for JPG and PDF.
   For `.psd` the flattened composite image is used.
 - Not supported (on purpose, to avoid extra dependencies): HEIC, camera RAW, EXR, audio/video.
-- Errors show a small popup with the file name and the reason.
+- **Multi-select:** Explorer starts one process per selected file. Each drops its file into a spool folder
+  (`%TEMP%\QuickConvert`), the first one to take a named semaphore converts them all one after another
+  in a single window, and the rest exit at once. Works for any number of files.
+- **Emoji** keep their colours in PDF/Word: Word draws them black-and-white when the text has a colour,
+  so each emoji is wrapped in a span with Word's "automatic" colour.
+- A small progress window (tkinter, part of Python) shows each step (starting Word, opening, saving…). When it finishes it offers
+  **Open** / **Show in folder** and closes by itself after 5 seconds; on errors it stays open with the reason.
 
 ## Development
 

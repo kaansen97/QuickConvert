@@ -22,6 +22,8 @@ Some **bold** text and a table:
 | 1    | Draft        |
 | 2    | Publish      |
 
+---
+
 ![diagram](images/diagram.svg)
 """
 
@@ -130,6 +132,22 @@ class ConvertTests(unittest.TestCase):
         out = convert(src, "pdf")
         self.assert_pdf(out)
         self.assertEqual(out.name, "Sample Manual.pdf")
+
+    @unittest.skipUnless(word_available(), "Word not installed")
+    def test_markdown_emoji_keep_colour(self):
+        try:
+            import pymupdf
+        except ImportError:
+            self.skipTest("pymupdf not installed")
+        src = self.dir / "Colours.md"
+        src.write_text("| Colour | Name |\n|---|---|\n| \U0001F7E8 Yellow | Pending |\n\n"
+                       "> ✅ **Good to know**\n", encoding="utf-8")
+        pix = pymupdf.open(convert(src, "pdf"))[0].get_pixmap(dpi=40)
+        colourful = sum(
+            1 for y in range(pix.height) for x in range(pix.width)
+            if max(pix.pixel(x, y)[:3]) - min(pix.pixel(x, y)[:3]) > 60
+        )
+        self.assertGreater(colourful, 20)  # Word draws emoji black-and-white when text has a colour
 
     @unittest.skipUnless(word_available(), "Word not installed")
     def test_markdown_to_docx_embeds_image(self):

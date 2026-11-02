@@ -1,10 +1,11 @@
 import html
+import re
 import tempfile
 from pathlib import Path
 
 import markdown2
 
-from .common import output_path
+from .common import output_path, progress
 from .office import export_docx, export_pdf
 
 SOURCE_EXTS = [".md", ".markdown"]
@@ -28,8 +29,24 @@ blockquote { margin-left: 0; padding-left: 10pt; color: #59636e; border-left: 3p
 """
 
 
+EMOJI = re.compile(
+    "[\U0001F000-\U0001FAFF⌀-⏿☀-➿⬀-⯿]"
+    "[️‍\U0001F3FB-\U0001F3FF\U0001F000-\U0001FAFF]*"
+)
+TAG = re.compile(r"(<[^>]+>)")
+
+
+def keep_emoji_colour(body: str) -> str:
+    """Word draws emoji black-and-white when the text has a colour; give them "automatic" colour."""
+    parts = TAG.split(body)  # odd items are tags; only touch text, never attributes
+    for i in range(0, len(parts), 2):
+        parts[i] = EMOJI.sub(lambda m: f'<span style="color:windowtext">{m[0]}</span>', parts[i])
+    return "".join(parts)
+
+
 def to_html(source: Path) -> str:
     body = markdown2.markdown(source.read_text(encoding="utf-8-sig"), extras=EXTRAS)
+    body = keep_emoji_colour(body)
     # <base> makes relative links such as images/foo.svg resolve against the .md's folder.
     base = source.parent.resolve().as_uri() + "/"
     return (
@@ -43,6 +60,7 @@ def convert(source: Path, target: str = "pdf") -> Path:
     """Markdown -> HTML -> PDF or .docx via a hidden Word (Edge headless is blocked by policy here)."""
     out = output_path(source, ".docx" if target == "docx" else ".pdf")
     with tempfile.TemporaryDirectory(prefix="quickconvert-") as tmp:
+        progress("Reading Markdown…", 0.05)
         page = Path(tmp) / "page.html"
         page.write_text(to_html(source), encoding="utf-8")
         if target == "docx":
